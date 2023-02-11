@@ -115,8 +115,8 @@ def parse_description(fpath):
     return ""
 
 
-NAME = "dydipy"
-VERSION = parse_version("dydipy/__init__.py")  # must be global for git tags
+NAME = "hydipy"
+VERSION = parse_version("hydipy/__init__.py")  # must be global for git tags
 
 
 if __name__ == "__main__":
@@ -129,7 +129,7 @@ if __name__ == "__main__":
         package_data={"": ["utils/example_models/*.bif.gz"]},
         author="Barbaros Yet",
         author_email="barbarosyet@gmail.com",
-        url="https://github.com/dydipy/dydipy",
+        url="https://github.com/hydipy/hydipy",
         license="MIT",
         classifiers=[
             "Programming Language :: Python :: 3.7",
@@ -154,13 +154,3 @@ if __name__ == "__main__":
         },
     )
 
-
-setup(name='dydipy',
-      version='0.1',
-      description='Hybrid Bayesian Networks with Dynamic Discretization Algorithm',
-      url='http://github.com/byet/dydipy',
-      author='Barbaros Yet',
-      author_email='byet@metu.edu.tr',
-      license='MIT',
-      packages=['dydipy'],
-      zip_safe=False)
