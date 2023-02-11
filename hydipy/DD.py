@@ -2,8 +2,8 @@ import numpy as np
 from pgmpy.factors.discrete import TabularCPD
 from pgmpy.models import BayesianNetwork
 from pgmpy.inference import VariableElimination
-from ContinuousNodes import MixtureNode, ContinuousNode
 from networkx import topological_sort
+from hydipy.ContinuousNodes import MixtureNode, ContinuousNode
 
 
 class HybridBayesianNetwork(BayesianNetwork):

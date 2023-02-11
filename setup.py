@@ -129,7 +129,7 @@ if __name__ == "__main__":
         package_data={"": ["utils/example_models/*.bif.gz"]},
         author="Barbaros Yet",
         author_email="barbarosyet@gmail.com",
-        url="https://github.com/hydipy/hydipy",
+        url="https://github.com/byet/hydipy",
         license="MIT",
         classifiers=[
             "Programming Language :: Python :: 3.7",
