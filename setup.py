@@ -147,10 +147,10 @@ if __name__ == "__main__":
         ],
         long_description=parse_description("README.md"),
         long_description_content_type="text/markdown",
-        install_requires=parse_requirements("requirements/runtime.txt"),
+        install_requires=parse_requirements("requirements.txt"),
         extras_require={
             "all": parse_requirements("requirements.txt"),
-            "tests": parse_requirements("requirements/tests.txt"),
+            "tests": parse_requirements("requirements.txt"),
         },
     )
 
