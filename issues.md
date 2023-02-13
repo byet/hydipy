@@ -14,3 +14,6 @@
 - [ ] Normal expressionlar lazım? Bunları simulasyonla hazırlasak olmaz mı?
 - [ ] Beta binomial lazım?
 - [ ] I think we only merge the neighbor nodes with zero density
+
+how to keep latest marginal probabilities in contnode object
+standardized build prob, cdf and pdf for contnode objects..
