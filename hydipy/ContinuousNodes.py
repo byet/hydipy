@@ -1,6 +1,7 @@
 import numbers
 import numpy as np
 from pgmpy.factors.discrete import TabularCPD
+from scipy.stats import uniform
 
 
 class DiscretizedNode:
@@ -293,6 +294,105 @@ class ContinuousNode(DiscretizedNode):
             values = np.column_stack(probs)
             for parent in self.evidence:
                 evidence_card.append(len(par_states[parent]))
+
+        self.par_state_names = par_states
+        self.state_names = np.column_stack([self.lb, self.ub])
+        self.values = values
+        self.evidence_card = evidence_card
+
+
+class Deterministic(ContinuousNode):
+    def __init__(self, variable, expression, evidence=None):
+        if evidence is not None:
+            if isinstance(evidence, str):
+                raise TypeError(
+                    "Evidence must be list, tuple or array of strings.")
+
+        self.variable = variable
+        self.evidence = evidence
+
+        self.expression = expression
+        self.disc = np.linspace(-2, 2, 4)
+        self.probs = np.ones(4-1) / (4-1)
+
+        self.set_discretization(self.disc)
+        self.state_names = np.column_stack([self.lb, self.ub])
+        # self.build_cpt()
+
+    def initialize_discretization(self, parent_states=None):
+        if not parent_states:
+            raise ValueError("Deterministic nodes must have parents")
+
+        minval = np.inf
+        maxval = -np.inf
+        states = list(parent_states.values())
+
+        num_states = 1
+        for el in states:
+            num_states *= len(el)
+
+        for index, row in enumerate(states):
+            states[index] = [element for element in row]
+        cpt_states = np.array(np.meshgrid(
+            *states)).T.reshape(num_states, -1)
+
+        for state in cpt_states:
+            state = [[float(i) for i in x.split(",")] for x in state]
+            combinations = np.array(np.meshgrid(
+                *state)).T.reshape(-1, len(state))
+            minval = min(minval, np.min(
+                [self.expression(*comb) for comb in combinations]))
+            maxval = max(minval, np.max(
+                [self.expression(*comb) for comb in combinations]))
+
+        disc = np.linspace(minval, maxval, 4)
+        self.disc = disc
+        self.set_discretization(self.disc)
+        return disc
+
+    def build_cpt_interval(self, *args):
+        combinations = np.array(np.meshgrid(*args)).T.reshape(-1, len(args))
+        results = np.array([self.expression(*pars) for pars in combinations])
+        # scipy uniform parameters are lower bound and interval width
+        loc = np.min(results)
+        scale = np.max(results) - loc
+        uniform_pars = np.array([loc, scale])
+        potentials = uniform.cdf(self.ub, *uniform_pars) - \
+            uniform.cdf(self.lb, *uniform_pars)
+        probs = potentials / potentials.sum()
+        intervals = np.column_stack([self.lb, self.ub])
+        return intervals, probs
+
+    def build_cpt(self, par_states=None):
+        evidence_card = []
+        if not par_states:
+            raise ValueError("Deterministic nodes must have parents")
+
+        # par_states = {'x': ['0.4,0.5', '0.5,0.6'], 'y':['0.05,0.1','0.1,0.2']}
+        states = list(par_states.values())
+
+        num_states = 1
+        for el in states:
+            num_states *= len(el)
+
+        for index, row in enumerate(states):
+            states[index] = [element for element in row]
+
+        probs = []
+
+        cpt_states = np.array(np.meshgrid(
+            *states)).T.reshape(num_states, -1)
+
+        for cpt_state in cpt_states:
+
+            state = [[float(i) for i in x.split(",")] for x in cpt_state]
+            num_par = len(state)
+            _, prob = self.build_cpt_interval(*state)
+            probs.append(prob)
+
+        values = np.column_stack(probs)
+        for parent in self.evidence:
+            evidence_card.append(len(par_states[parent]))
 
         self.par_state_names = par_states
         self.state_names = np.column_stack([self.lb, self.ub])
