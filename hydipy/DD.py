@@ -126,6 +126,7 @@ class DD:
 
 def summarize(states, probs, lci=0.05, uci=0.95):
     intervals = np.array([[float(i) for i in x.split(",")] for x in states])
+    print(intervals)
     return summary_stats(intervals, probs, lci, uci)
 
 
@@ -140,6 +141,17 @@ def summary_stats(intervals, probs, lci=0.05, uci=0.95):
 
 
 def quantile(intervals, probs, q):
+    """Computes percentile using manual interpolation function
+
+
+    Args:
+        intervals (array): 2d array of state intervals
+        probs (array): 1d array of probability mass corresponding to state intervals
+        q (_type_): percentile point
+
+    Returns:
+        array: percentile point
+    """
     cumdist = np.cumsum(probs)
     index = np.argwhere(cumdist >= q)[0]
     lprob = 0 if index == 0 else cumdist[index - 1]
@@ -147,3 +159,19 @@ def quantile(intervals, probs, q):
     interpolvalue = intervals[index][0][0] + (q - lprob) * (
         intervals[index][0][1] - intervals[index][0][0]) / (uprob - lprob)
     return interpolvalue
+
+def quantile2(intervals, probs, q):
+    """Computes percentile using numpy interpolation function
+
+    Args:
+        intervals (array): 2d array of state intervals
+        probs (array): 1d array of probability mass corresponding to state intervals
+        q (_type_): percentile point
+
+    Returns:
+        float: percentile point
+    """
+    disc = np.insert(intervals[:,1],0,intervals[0,0])
+    ext_probs = np.insert(probs,0,0.)
+    cum_probs = np.cumsum(ext_probs)
+    return np.interp(q, xp=cum_probs, fp=disc)
