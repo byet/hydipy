@@ -99,7 +99,9 @@ class DiscretizedNode:
         Returns the indices of added and merged intervals
 
         """
+        self.probs = probs
         entropy_error = self.compute_error(probs)
+        self.entropy_error = entropy_error
         added_index = entropy_error.argmax()
         new_disc = self.add_interval(added_index)
 
@@ -112,6 +114,16 @@ class DiscretizedNode:
             new_disc = self.merge_interval(removed_indices)
 
         return new_disc, added_index, removed_indices
+
+    def cdf(self, x):
+        new_probs = np.insert(self.probs, 0, 0.)
+        cum_probs = np.cumsum(new_probs)
+        return np.interp(x, xp=self.disc, fp=cum_probs)
+
+    def ppf(self, x):
+        new_probs = np.insert(self.probs, 0, 0.)
+        cum_probs = np.cumsum(new_probs)
+        return np.interp(x, xp=cum_probs, fp=self.disc)
 
     def summary_stats(self, intervals, probs, lci=0.05, uci=0.95):
         midpoints = intervals.mean(axis=1)
@@ -207,6 +219,7 @@ class ContinuousNode(DiscretizedNode):
 
         self.dist = dist
         self.disc = np.linspace(-2, 2, 4)
+        self.probs = np.ones(4-1) / (4-1)
 
         self.set_discretization(self.disc)
         self.state_names = np.column_stack([self.lb, self.ub])
