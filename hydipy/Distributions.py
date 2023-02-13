@@ -66,35 +66,35 @@ class UniformDistribution:
 
     def _cdf_kn(self, x):
         scale = self.b - self.a
-        return norm.cdf(x, loc=self.a, scale=scale)
+        return uniform.cdf(x, loc=self.a, scale=scale)
 
     def _cdf_a_unk(self, x, a):
         scale = self.b - a
-        return norm.cdf(x, loc=a, scale=scale)
+        return uniform.cdf(x, loc=a, scale=scale)
 
     def _cdf_b_unk(self, x, b):
         scale = b - self.a
-        return norm.cdf(x, loc=self.a, scale=scale)
+        return uniform.cdf(x, loc=self.a, scale=scale)
 
     def _cdf_a_b_unk(self, x, a, b):
         scale = b - a
-        return norm.cdf(x, loc=a, scale=scale)
+        return uniform.cdf(x, loc=a, scale=scale)
 
     def _ppf_kn(self, x):
         scale = self.b - self.a
-        return norm.ppf(x, loc=self.a, scale=scale)
+        return uniform.ppf(x, loc=self.a, scale=scale)
 
     def _ppf_a_unk(self, x, a):
         scale = self.b - a
-        return norm.ppf(x, loc=a, scale=scale)
+        return uniform.ppf(x, loc=a, scale=scale)
 
     def _ppf_b_unk(self, x, b):
         scale = b - self.a
-        return norm.ppf(x, loc=self.a, scale=scale)
+        return uniform.ppf(x, loc=self.a, scale=scale)
 
     def _ppf_a_b_unk(self, x, a, b):
         scale = b - a
-        return norm.ppf(x, loc=a, scale=scale)
+        return uniform.ppf(x, loc=a, scale=scale)
 
 
 class ExponentialDistribution:
