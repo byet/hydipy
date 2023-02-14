@@ -167,41 +167,6 @@ class DiscretizedNode:
         cum_probs = np.cumsum(new_probs)
         return np.interp(x, xp=cum_probs, fp=self.disc)
 
-    def summary_stats(self, disc, probs, lci=0.05, uci=0.95):
-        """Summary statistics of a discretized distribution
-
-        Args:
-            disc (array): 1d array of discretization points
-            probs (array): 1d array of probability mass corresponding to state intervals
-            lci (float, optional): lower credible interval percentile. Defaults to 0.05.
-            uci (float, optional): upper credible interval percentile. Defaults to 0.95.
-
-        Returns:
-            dict: mean, standard deviation, lower and upper credible interval points
-        """
-        midpoints = (disc[:-1] + disc[1:]) / 2
-        mean = (midpoints * probs).sum()
-        variance = (probs * (midpoints - mean)**2).sum()
-        stdev = np.sqrt(variance)
-        lq = self.percentile(disc, probs, lci)
-        uq = self.percentile(disc, probs, uci)
-        return {'mean':mean, 'std':stdev, 'lci':lq, 'hci':uq}
-
-    def percentile(self, disc, probs, q):
-        """Computes percentile using numpy interpolation function
-
-        Args:
-            disc (array): 1d array of discretization points
-            probs (array): 1d array of probability mass corresponding to state intervals
-            q (_type_): percentile point
-
-        Returns:
-            float: percentile point
-        """
-        ext_probs = np.insert(probs,0,0.)
-        cum_probs = np.cumsum(ext_probs)
-        return np.interp(q, xp=cum_probs, fp=disc)
-
     def build_pgmpy_cpd(self, parent_nodes = None):
         """builds a pgmpy cpd based on current discretization
 
