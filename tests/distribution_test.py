@@ -1,5 +1,5 @@
 import unittest
-from dydipy import Distributions
+from hydipy import Distributions
 
 class Test_NormalDistributionKnownParameters(unittest.TestCase):
     def setUp(self):

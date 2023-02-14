@@ -2,3 +2,4 @@ networkx>=3.0
 numpy>=1.24
 scipy>=1.10
 pgmpy>=0.1.21
+matplotlib>=3.70

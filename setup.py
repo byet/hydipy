@@ -123,7 +123,7 @@ if __name__ == "__main__":
     setup(
         name=NAME,
         version=VERSION,
-        description="A library for Probabilistic Graphical Models",
+        description="Hyrbid Bayesian Networks using Dynamic Discretization",
         packages=find_packages(exclude=["tests"]),
         include_package_data=True,
         package_data={"": ["utils/example_models/*.bif.gz"]},
