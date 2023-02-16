@@ -48,3 +48,10 @@ coverage.xml
 
 # Sphinx documentation
 docs/_build/
+
+# Vscode
+.vscode
+
+# Other
+trash
+issues.md
