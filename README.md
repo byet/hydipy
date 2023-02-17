@@ -4,12 +4,12 @@
 
 ## Dependencies
 
-- pgmpy
-        - torch through pgmpy
-- numpy
-- scipy
-- networkx
 - matplotlib
+- networkx
+- numpy
+- pyAgrum
+- scipy
+
 
 ## Installation
 
