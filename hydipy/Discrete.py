@@ -1,6 +1,7 @@
 from pyAgrum import LabelizedVariable
 import numpy as np
 
+
 class DiscreteNode:
     def __init__(self, id, values, parents, states):
         self.id = id
@@ -8,7 +9,7 @@ class DiscreteNode:
         self.parents = parents
         self.values = np.array(values)
         self.cardinality = len(values)
-    
+
     def agrum_var(self):
         return LabelizedVariable(self.id, self.id, self.states)
 
@@ -23,4 +24,3 @@ class DiscreteNode:
     def agrum_cpd(self):
         probs = self.values.T.reshape(-1)
         return probs
-

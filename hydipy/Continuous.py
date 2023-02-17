@@ -2,11 +2,13 @@ import numpy as np
 from scipy.stats import uniform
 from pyAgrum import LabelizedVariable
 
+
 class DiscretizedNode:
     """
     Base class for continuous nodes
     """
-    def __init__(self, id, parents = [], disc = None):
+
+    def __init__(self, id, parents=[], disc=None):
         """_summary_
 
         Args:
@@ -15,8 +17,7 @@ class DiscretizedNode:
         """
         if parents is not None:
             if isinstance(parents, str):
-                raise TypeError(
-                    "Evidence must be list, tuple or array of strings.")
+                raise TypeError("Evidence must be list, tuple or array of strings.")
         self.id = id
         self.parents = parents
         self.states = []
@@ -39,7 +40,7 @@ class DiscretizedNode:
 
     def discretized_probability_mass(self, dist, lb, ub):
         """Builds discretization probability mass probability table based on the distribution cdf
-        
+
         Args:
             dist (Distribution): A distribution object
             lb (array): 1d numpy array of lower bounds of discretization intervals
@@ -75,11 +76,11 @@ class DiscretizedNode:
         f_min[f_min <= 0] = 0.000000001
         f_max[f_max <= 0] = 0.000000001
 
-        a = (f_max-f_bar)/(f_max-f_min)
-        b = (f_bar-f_min)/(f_max-f_min)
+        a = (f_max - f_bar) / (f_max - f_min)
+        b = (f_bar - f_min) / (f_max - f_min)
         c = np.log(f_min / f_bar)
         d = np.log(f_max / f_bar)
-        res = (a*f_min*c + b*f_max*d)*wj
+        res = (a * f_min * c + b * f_max * d) * wj
 
         return res
 
@@ -103,8 +104,13 @@ class DiscretizedNode:
         evidence_lb = value - evidence_bound
         evidence_ub = value + evidence_bound
         # You may as well delete all other intervals
-        ev_disc = np.concatenate([self.disc[self.disc < evidence_lb], [
-                                 evidence_lb, evidence_ub], self.disc[self.disc > evidence_ub]])
+        ev_disc = np.concatenate(
+            [
+                self.disc[self.disc < evidence_lb],
+                [evidence_lb, evidence_ub],
+                self.disc[self.disc > evidence_ub],
+            ]
+        )
 
         self.set_discretization(ev_disc)
         return f"{evidence_lb},{evidence_ub}"
@@ -153,7 +159,7 @@ class DiscretizedNode:
         if probs is None:
             probs = self.probs
 
-        new_probs = np.insert(self.probs, 0, 0.)
+        new_probs = np.insert(self.probs, 0, 0.0)
         cum_probs = np.cumsum(new_probs)
         return np.interp(x, xp=self.disc, fp=cum_probs)
 
@@ -162,14 +168,13 @@ class DiscretizedNode:
             disc = self.disc
         if probs is None:
             probs = self.probs
-        
-        new_probs = np.insert(self.probs, 0, 0.)
+
+        new_probs = np.insert(self.probs, 0, 0.0)
         cum_probs = np.cumsum(new_probs)
         return np.interp(x, xp=cum_probs, fp=self.disc)
 
     def agrum_var(self):
         return LabelizedVariable(self.id, self.id, self.states)
-
 
     def agrum_edges(self):
         edges = []
@@ -201,9 +206,11 @@ class ContinuousNode(DiscretizedNode):
     def __init__(self, id, dist=None, parents=[], disc=None):
         super().__init__(id=id, parents=parents, disc=disc)
         self.dist = dist
-       
-    def initialize_intervals(self, parent_nodes=[], num_init_disc_states=3, lci=0.001, uci=0.999):
-        """Initalized discretization for cpt. Estimates lower and upper bound for 
+
+    def initialize_intervals(
+        self, parent_nodes=[], num_init_disc_states=3, lci=0.001, uci=0.999
+    ):
+        """Initalized discretization for cpt. Estimates lower and upper bound for
         discretization and divides into equal spaces.
 
         Args:
@@ -230,26 +237,32 @@ class ContinuousNode(DiscretizedNode):
         disc = np.linspace(minval, maxval, (num_init_disc_states + 1))
         self.set_discretization(disc)
         return disc
-        
+
     def _parent_state_combinations(self, parent_nodes):
         parent_states = {}
         num_states = 1
         for parent in parent_nodes:
             parent_states[parent.id] = parent.states
             num_states *= parent.cardinality
-        state_combinations = np.array(np.meshgrid(*parent_states.values())).T.reshape(num_states, -1)
+        state_combinations = np.array(np.meshgrid(*parent_states.values())).T.reshape(
+            num_states, -1
+        )
         return state_combinations
 
     def build_cpt_column(self, *args):
-        """Builds the conditional probability mass for one column of continuous 
+        """Builds the conditional probability mass for one column of continuous
         distribution with parents. Each interval of the parent need to be passed.
 
         Returns:
             array: 1d array of probabilities for a column of cpt
         """
         combinations = np.array(np.meshgrid(*args)).T.reshape(-1, len(args))
-        potentials = np.array([self.dist.cdf(
-            self.ub, *pars) - self.dist.cdf(self.lb, *pars) for pars in combinations]).sum(axis=0)
+        potentials = np.array(
+            [
+                self.dist.cdf(self.ub, *pars) - self.dist.cdf(self.lb, *pars)
+                for pars in combinations
+            ]
+        ).sum(axis=0)
         probs = potentials / potentials.sum()
         return probs
 
@@ -260,7 +273,7 @@ class ContinuousNode(DiscretizedNode):
             parent_nodes (list): list of parent nodes (continuous node objects). Defaults to [].
 
         Returns:
-            array: 2d array of cpt values 
+            array: 2d array of cpt values
         """
         probs = []
         if not parent_nodes:
@@ -276,13 +289,14 @@ class ContinuousNode(DiscretizedNode):
         self.values = values
         return values
 
+
 class Deterministic(ContinuousNode):
     def __init__(self, id, expression=None, parents=[], disc=None):
         super().__init__(id=id, parents=parents, disc=disc)
         self.expression = expression
-      
+
     def initialize_intervals(self, parent_nodes=[], num_init_disc_states=3):
-        """Initalized discretization for cpt. Estimates lower and upper bound for 
+        """Initalized discretization for cpt. Estimates lower and upper bound for
         discretization and divides into equal spaces.
 
         Args:
@@ -301,18 +315,22 @@ class Deterministic(ContinuousNode):
         cpt_states = self._parent_state_combinations(parent_nodes)
         for state in cpt_states:
             state_num = [[float(i) for i in x.split(",")] for x in state]
-            combinations = np.array(np.meshgrid(*state_num)).T.reshape(-1, len(state_num))
-            minval = min(minval, np.min(
-                [self.expression(*comb) for comb in combinations]))
-            maxval = max(minval, np.max(
-                [self.expression(*comb) for comb in combinations]))
+            combinations = np.array(np.meshgrid(*state_num)).T.reshape(
+                -1, len(state_num)
+            )
+            minval = min(
+                minval, np.min([self.expression(*comb) for comb in combinations])
+            )
+            maxval = max(
+                minval, np.max([self.expression(*comb) for comb in combinations])
+            )
 
         disc = np.linspace(minval, maxval, (num_init_disc_states + 1))
         self.set_discretization(disc)
         return disc
 
     def build_cpt_column(self, *args):
-        """Builds the conditional probability mass for one column of continuous 
+        """Builds the conditional probability mass for one column of continuous
         distribution with parents. Each interval of the parent need to be passed.
 
         Returns:
@@ -325,9 +343,12 @@ class Deterministic(ContinuousNode):
         loc = np.min(results)
         scale = np.max(results) - loc
         uniform_pars = [loc, scale]
-        potentials = uniform.cdf(self.ub, *uniform_pars) - uniform.cdf(self.lb, *uniform_pars)
+        potentials = uniform.cdf(self.ub, *uniform_pars) - uniform.cdf(
+            self.lb, *uniform_pars
+        )
         probs = potentials / potentials.sum()
         return probs
+
 
 class MixtureNode(DiscretizedNode):
     def __init__(self, id, values=None, parents=[], disc=None):
@@ -337,9 +358,10 @@ class MixtureNode(DiscretizedNode):
             raise TypeError("Values must be a 2D list/array")
         self.dists = dists
 
-    
-    def initialize_intervals(self, parent_nodes=[], num_init_disc_states=3, lci=0.001, uci=0.999):
-        """Initalized discretization for cpt. Estimates lower and upper bound for 
+    def initialize_intervals(
+        self, parent_nodes=[], num_init_disc_states=3, lci=0.001, uci=0.999
+    ):
+        """Initalized discretization for cpt. Estimates lower and upper bound for
         discretization and divides into equal spaces.
 
         Args:
@@ -370,7 +392,7 @@ class MixtureNode(DiscretizedNode):
             parent_nodes (list): list of continuosu parent nodes. Defaults to [].
 
         Returns:
-            array: 2d array of cpt values 
+            array: 2d array of cpt values
         """
         probs = []
         for dist in self.dists:
