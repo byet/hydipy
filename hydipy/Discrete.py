@@ -1,22 +1,26 @@
-from pgmpy.factors.discrete import TabularCPD
+from pyAgrum import LabelizedVariable
+import numpy as np
 
 class DiscreteNode:
     def __init__(self, id, values, parents, states):
         self.id = id
-        self.state_names = states
-        self.parents = parents
-        self.values = values
-        self.cardinality = len(values)
         self.states = states
-    def build_pgmpy_cpd(self, parent_nodes = None):
-        parents_card = []
-        pgmpy_states = {}
-        pgmpy_states[self.id] = self.states
-        if parent_nodes is not None:
-            for parent in parent_nodes:
-                parents_card.append(parent.cardinality)
-                pgmpy_states[parent.id] = parent.states
-        cpd = TabularCPD(variable=self.id, variable_card=self.cardinality, values= self.values, evidence=self.parents, evidence_card=parents_card, state_names=pgmpy_states)
-        self.cpd = cpd
-        return cpd
+        self.parents = parents
+        self.values = np.array(values)
+        self.cardinality = len(values)
+    
+    def agrum_var(self):
+        return LabelizedVariable(self.id, self.id, self.states)
+
+    def agrum_edges(self):
+        edges = []
+        if self.parents:
+            # reversed because of variable ordering differences in pyagrum
+            for parent in reversed(self.parents):
+                edges.append((parent, self.id))
+        return edges
+
+    def agrum_cpd(self):
+        probs = self.values.T.reshape(-1)
+        return probs
 

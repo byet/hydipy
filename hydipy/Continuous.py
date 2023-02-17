@@ -1,7 +1,6 @@
 import numpy as np
-from pgmpy.factors.discrete import TabularCPD
 from scipy.stats import uniform
-
+from pyAgrum import LabelizedVariable
 
 class DiscretizedNode:
     """
@@ -20,6 +19,7 @@ class DiscretizedNode:
                     "Evidence must be list, tuple or array of strings.")
         self.id = id
         self.parents = parents
+        self.states = []
         if disc is not None:
             self.set_discretization(disc)
 
@@ -167,26 +167,21 @@ class DiscretizedNode:
         cum_probs = np.cumsum(new_probs)
         return np.interp(x, xp=cum_probs, fp=self.disc)
 
-    def build_pgmpy_cpd(self, parent_nodes = None):
-        """builds a pgmpy cpd based on current discretization
+    def agrum_var(self):
+        return LabelizedVariable(self.id, self.id, self.states)
 
-        Args:
-            parent_nodes (list, optional): list of parent node objects. Defaults to None.
 
-        Returns:
-            TabularCPD: pgmpy TabularCPD object
-        """
-        parents_card = []
-        pgmpy_states = {}
-        pgmpy_states[self.id] = self.states
-        
-        if parent_nodes is not None:
-            for parent in parent_nodes:
-                parents_card.append(parent.cardinality)
-                pgmpy_states[parent.id] = parent.states
-        cpd = TabularCPD(variable=self.id, variable_card=self.cardinality, values= self.values, evidence=self.parents, evidence_card=parents_card, state_names=pgmpy_states)
-        
-        return cpd
+    def agrum_edges(self):
+        edges = []
+        if self.parents:
+            # reversed because of variable ordering differences in pyagrum
+            for parent in reversed(self.parents):
+                edges.append((parent, self.id))
+        return edges
+
+    def agrum_cpd(self):
+        probs = self.values.T.reshape(-1)
+        return probs
 
     def build_cpt(self, parent_nodes=[]):
         pass

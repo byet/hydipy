@@ -1,22 +1,23 @@
 from hydipy.Continuous import MixtureNode, ContinuousNode
 from hydipy.Discrete import DiscreteNode
 import warnings
-from pgmpy.models import BayesianNetwork
-from pgmpy.inference import VariableElimination
-from networkx import DiGraph, topological_sort
+import pyAgrum as gum
 import matplotlib.pyplot as plt
 import numpy as np
+from networkx import DiGraph, topological_sort
 
 class Hybrid_BN:
     def __init__(self, cpts):
         self.edges = []
         self.nodes = {}
-        self.aux_bn = self._create_pgmpy_bn(cpts)
         self.nodes = self._init_nodes(cpts)
-        self.partial_order = self.topological_order(self.aux_bn)
+        self.edges = self._init_edges(cpts)
+        # Bn to get partial order
+        self.partial_order = self.topological_order(self.edges)
         self.partial_order_cont_nodes = self.sort_continuous_nodes(self.partial_order, self.nodes)
-        self.pgmpy_cpds = self._init_cpts(self.nodes, self.partial_order)
-        self.aux_bn.add_cpds(*self.pgmpy_cpds)
+        self.aux_bn_cpds = self._init_cpts(self.nodes, self.partial_order)
+        self.aux_bn = self._create_pyagrum_bn(self.nodes, self.aux_bn_cpds)
+
         self.propagated = False
 
     def _init_nodes(self, cpts):
@@ -25,23 +26,28 @@ class Hybrid_BN:
             variable = cpt.id
             nodes[variable] = cpt
         return nodes
-    
-    def _create_pgmpy_bn(self, cpts):
+
+    def _init_edges(self, cpts):
+        edges = []
         for cpt in cpts:
-            variable = cpt.id
-            parents = cpt.parents
-            self.edges += [(parent, variable) for parent in parents]
+            edges += cpt.agrum_edges()
+        return edges
 
-        return BayesianNetwork(self.edges)
-
-    def topological_order(self, model):
-        dag = model
-        if not isinstance(dag, DiGraph):
-            dag = DiGraph(dag)
-        return list(topological_sort(dag))
-
+    def _create_pyagrum_bn(self, nodes, agrum_cpds = {}):
+        bn = gum.BayesNet()
+        for node in nodes.values():
+            bn.add(node.agrum_var())
+        bn.addArcs(self.edges)
+        for node_name in nodes.keys():
+            cpd_probs = agrum_cpds[node_name]
+            bn.cpt(node_name).fillWith(cpd_probs)
+        return bn
+    
+    def topological_order(self, edges):
+        return list(topological_sort(DiGraph(edges)))
+       
     def _init_cpts(self, nodes, partial_order):
-        cpds = []
+        cpds = {}
         for variable in partial_order:
             node = nodes[variable]
             if not isinstance(node, (DiscreteNode, MixtureNode, ContinuousNode)):
@@ -52,8 +58,8 @@ class Hybrid_BN:
             
             if isinstance(node, (MixtureNode, ContinuousNode)):
                 node.initialize_cpt(parent_nodes)
-            cpd = node.build_pgmpy_cpd(parent_nodes)
-            cpds.append(cpd)
+            cpd_probs = node.agrum_cpd()
+            cpds[variable] = cpd_probs
         return cpds
 
     def update_cont_cpt(self, variable, nodes):
@@ -62,17 +68,21 @@ class Hybrid_BN:
             raise ValueError(
                 "Only discretizations of MixtureNode or ContinuousNode can be updated.")
         parent_nodes = [nodes[parent] for parent in node.parents]
-        node.update_cpt(parent_nodes)
-        cpd = node.build_pgmpy_cpd(parent_nodes)
-        self.aux_bn.add_cpds(cpd)
-        return cpd
+        node.update_cpt(parent_nodes)            
+        cpd_probs = node.agrum_cpd()
+        self.aux_bn_cpds[variable] = cpd_probs        
+        return cpd_probs
 
-    
     def reset_aux_bn(self):
-        self.aux_bn = BayesianNetwork(self.edges)
-        self.pgmpy_cpds = self._init_cpts(self.nodes, self.partial_order)
-        self.aux_bn.add_cpds(*self.pgmpy_cpds)
+        cpds = self._init_cpts(self.nodes, self.partial_order)
+        self.aux_bn_cpds = cpds
+        self.aux_bn = self._create_pyagrum_bn(self.nodes, cpds)
         self.propagated = False
+
+    def refresh_aux_bn(self):
+        self.aux_bn = self._create_pyagrum_bn(self.nodes, self.aux_bn_cpds)
+        self.propagated = False
+
 
     def sort_continuous_nodes(self, partial_order, nodes):
         partial_order_cont_nodes = []
@@ -86,12 +96,12 @@ class DynamicDiscretization:
         self.model = hbn
         self.evidence_tolerance = evidence_tolerance
 
-
     def query(self, variables, evidence=None, n_iter=10, show_stats = False, show_figures = False):
         aux_evidence = None
         if evidence is not None:
             aux_evidence = evidence.copy()
         continuous_nodes_ordered = self.model.partial_order_cont_nodes
+
         if self.model.propagated:
             self.model.reset_aux_bn()
         
@@ -106,6 +116,7 @@ class DynamicDiscretization:
             for variable in continuous_nodes_ordered:
                 node = self.model.nodes[variable]
                 self.model.update_cont_cpt(variable, self.model.nodes)
+            self.model.refresh_aux_bn()
 
         # Select which nodes to apply DD
         if not continuous_nodes_ordered:
@@ -118,48 +129,52 @@ class DynamicDiscretization:
 
         # DD
         for iter in range(n_iter):
-            infer = VariableElimination(self.model.aux_bn)
-            cont_marginals = infer.query(
-                queried_cont_nodes, evidence=aux_evidence, joint=False)
 
+            infer = gum.LazyPropagation(self.model.aux_bn)
+            infer.setEvidence(aux_evidence)
+            infer.makeInference()
             # Update intervals of non-evidence nodes
             for variable in queried_cont_nodes:
                 node = self.model.nodes[variable]
-                marginal = cont_marginals[variable].values
+                marginal = infer.posterior(variable).toarray()
                 node.update_intervals(marginal)
             # Update cpts of all continuous nodes (as evidence nodes parents may change)
             for variable in continuous_nodes_ordered:
                 node = self.model.nodes[variable]
                 self.model.update_cont_cpt(variable, self.model.nodes)
+            self.model.refresh_aux_bn()
 
-        infer = VariableElimination(self.model.aux_bn)
+        infer = gum.LazyPropagation(self.model.aux_bn)
+        infer.setEvidence(aux_evidence)
+        infer.makeInference()
         self.model.propagated = True
-        post = infer.query(variables, evidence=aux_evidence, joint=False)
+
         if show_stats:
-            self.query_variable_stats(variables, post, show_figures)
-        return post
+            self.query_variable_stats(variables, infer, show_figures)
+        return infer
 
     def query_variable_stats(self, variables, posteriors, show_figures=False):
+
         for variable in variables:
-            post = posteriors[variable]
+            post = posteriors.posterior(variable)
+            post_values = post.toarray()
             node = self.model.nodes[variable]
             print(f"***** Variable: {variable} ******\n")
             if isinstance(node, DiscreteNode):
                 print(post)
                 if show_figures:
-                    values = post.values
-                    states = post.state_names['x']
-                    plt.bar(states, values)
+                    states = node.states
+                    plt.bar(states, post_values)
             else:
                 lci = 0.05
                 uci = 0.95
-                stats = self.summary_stats(node.disc, post.values, lci, uci)
+                stats = self.summary_stats(node.disc, post_values, lci, uci)
                 print(f"Mean: {stats['mean']:.3f}, Std. Dev: {stats['std']:.3f}")
                 print(f"Percentile ({lci * 100}% — {uci * 100}%) = ({stats['lci']:.3f} — {stats['uci']:.3f})")
                 if show_figures:
                     fig, ax = plt.subplots()
                     bins = node.disc
-                    probs = post.values
+                    probs = post_values
                     ax.hist(bins[:-1], bins, weights=probs)
                     ax.set_title(variable)
 
