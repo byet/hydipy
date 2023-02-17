@@ -2,7 +2,7 @@ from scipy.stats import norm, expon, beta, uniform
 
 
 class NormalDistribution:
-    def __init__(self, mean=0., sd=1.):
+    def __init__(self, mean=0.0, sd=1.0):
         self.mean = mean
         self.sd = sd
 
@@ -46,7 +46,7 @@ class NormalDistribution:
 
 
 class UniformDistribution:
-    def __init__(self, a=0., b=1.):
+    def __init__(self, a=0.0, b=1.0):
         self.a = a
         self.b = b
 
@@ -114,17 +114,17 @@ class ExponentialDistribution:
         return expon.cdf(x, scale=self.scale)
 
     def _cdf_rate_unk(self, x, lam):
-        return expon.cdf(x, scale=(1/lam))
+        return expon.cdf(x, scale=(1 / lam))
 
     def _ppf_kn(self, x):
         return expon.ppf(x, scale=self.scale)
 
     def _ppf_rate_unk(self, x, lam):
-        return expon.ppf(x, scale=(1/lam))
+        return expon.ppf(x, scale=(1 / lam))
 
 
 class BetaDistribution:
-    def __init__(self, alpha=0., beta=1.):
+    def __init__(self, alpha=0.0, beta=1.0):
         self.alpha = alpha
         self.beta = beta
 
