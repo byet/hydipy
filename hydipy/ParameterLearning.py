@@ -1,11 +1,14 @@
 import pandas as pd 
+from hydipy.Discrete import DiscreteNode
 
 class CPTLearner:
-    def __init__(self, train_data=None):
+    def __init__(self, model, train_data=None, correction=0.01):
+        self.model = model
         self.train_data = train_data
+        self.correction = correction
 
-    def cpt_counts(self, variable, train_data, state_names, parents = [], ignore_na=True, correction = 0.01):
-        """_summary_
+    def cpt_counts(self, variable, state_names, parents = [], ignore_na=True):
+        """Counts the values for a CPT in the dataset
 
         Args:
             variable (string): variable name
@@ -19,9 +22,9 @@ class CPTLearner:
         """
 
         if ignore_na:
-            data = train_data.dropna()
+            data = self.train_data.dropna()
         else:
-            data = train_data
+            data = self.train_data
 
         if not parents:
             counts = data.loc[:, variable].value_counts().astype(float)
@@ -29,7 +32,7 @@ class CPTLearner:
                 counts.reindex(state_names[variable])
                 .fillna(0)
                 .to_frame()
-            )
+            ) + self.correction
 
         else:
             parents_states = [state_names[parent] for parent in parents]
@@ -45,6 +48,24 @@ class CPTLearner:
             #                  did not occur in data
             row_index = state_names[variable]
             column_index = pd.MultiIndex.from_product(parents_states, names=parents)
-            state_counts = counts.reindex(index=row_index, columns=column_index).fillna(0) + correction
+            state_counts = counts.reindex(index=row_index, columns=column_index).fillna(0) + self.correction
         return state_counts
+
+    def learn_cpt(self, node, normalize=True):
+        node_id = node.id
+        parents = node.parents
+        state_names = dict()
+        state_names[node_id] = node.states
+        if parents:
+            state_names.update({parent:self.model.nodes[parent].states for parent in parents})
+        counts = self.cpt_counts(variable=node_id, state_names=state_names, parents=parents).to_numpy()
+        node = DiscreteNode(id=node_id, values=counts, parents=parents, states=state_names[node_id])
+        if normalize:
+            node.normalize()
+        return node
+    
+    def mle(self):
+        return {key:self.learn_cpt(node) for (key, node) in self.model.nodes.items()}
+
+
         

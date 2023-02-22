@@ -10,6 +10,21 @@ class DiscreteNode:
         self.values = np.array(values)
         self.cardinality = len(values)
 
+    def normalize(self):
+        """Normalized CPDs so each column sum to 1
+
+        Returns:
+            array: normalized cpd
+        """
+        normalized = self.values / self.values.sum(axis=0)
+
+        # Replace nan with uniform probabilities
+        uniform_prob = 1 / normalized.shape[0]
+        normalized = np.nan_to_num(normalized, nan=uniform_prob)
+
+        self.values = normalized
+        return normalized
+
     def agrum_var(self):
         return LabelizedVariable(self.id, self.id, self.states)
 
@@ -24,3 +39,11 @@ class DiscreteNode:
     def agrum_cpd(self):
         probs = self.values.T.reshape(-1)
         return probs
+
+    def __eq__(self, other):
+        return (
+            self.id == other.id
+            and set(self.states) == set(other.states)
+            and set(self.parents) == set(other.parents)
+            and np.allclose(self.values, other.values)
+        )

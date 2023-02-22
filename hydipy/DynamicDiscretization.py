@@ -139,22 +139,23 @@ class DynamicDiscretization:
         else:
             queried_cont_nodes = continuous_nodes_ordered
 
-        # DD
-        for iter in range(n_iter):
+        if continuous_nodes_ordered:
+            # DD
+            for iter in range(n_iter):
 
-            infer = gum.LazyPropagation(self.model.aux_bn)
-            infer.setEvidence(aux_evidence)
-            infer.makeInference()
-            # Update intervals of non-evidence nodes
-            for variable in queried_cont_nodes:
-                node = self.model.nodes[variable]
-                marginal = infer.posterior(variable).toarray()
-                node.update_intervals(marginal)
-            # Update cpts of all continuous nodes (as evidence nodes parents may change)
-            for variable in continuous_nodes_ordered:
-                node = self.model.nodes[variable]
-                self.model.update_cont_cpt(variable, self.model.nodes)
-            self.model.refresh_aux_bn()
+                infer = gum.LazyPropagation(self.model.aux_bn)
+                infer.setEvidence(aux_evidence)
+                infer.makeInference()
+                # Update intervals of non-evidence nodes
+                for variable in queried_cont_nodes:
+                    node = self.model.nodes[variable]
+                    marginal = infer.posterior(variable).toarray()
+                    node.update_intervals(marginal)
+                # Update cpts of all continuous nodes (as evidence nodes parents may change)
+                for variable in continuous_nodes_ordered:
+                    node = self.model.nodes[variable]
+                    self.model.update_cont_cpt(variable, self.model.nodes)
+                self.model.refresh_aux_bn()
 
         infer = gum.LazyPropagation(self.model.aux_bn)
         infer.setEvidence(aux_evidence)
