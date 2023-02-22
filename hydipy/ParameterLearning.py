@@ -1,5 +1,8 @@
 import pandas as pd 
 from hydipy.Discrete import DiscreteNode
+from hydipy.DynamicDiscretization import Hybrid_BN
+import pyAgrum as gum
+
 
 class CPTLearner:
     def __init__(self, model, train_data=None, correction=0.01):
@@ -21,10 +24,12 @@ class CPTLearner:
             _type_: _description_
         """
 
+        cpt_vars = [variable] + parents
+
         if ignore_na:
-            data = self.train_data.dropna()
+            data = self.train_data[cpt_vars].dropna()
         else:
-            data = self.train_data
+            data = self.train_data[cpt_vars]
 
         if not parents:
             counts = data.loc[:, variable].value_counts().astype(float)
@@ -51,21 +56,110 @@ class CPTLearner:
             state_counts = counts.reindex(index=row_index, columns=column_index).fillna(0) + self.correction
         return state_counts
 
-    def learn_cpt(self, node, normalize=True):
+    def _get_node_info(self, node):
         node_id = node.id
         parents = node.parents
         state_names = dict()
         state_names[node_id] = node.states
         if parents:
             state_names.update({parent:self.model.nodes[parent].states for parent in parents})
-        counts = self.cpt_counts(variable=node_id, state_names=state_names, parents=parents).to_numpy()
-        node = DiscreteNode(id=node_id, values=counts, parents=parents, states=state_names[node_id])
+        return node_id, state_names, parents
+
+    def _get_non_missing_counts(self, node, normalize=True):
+        node_id, state_names, parents = self._get_node_info(node)
+        return self.cpt_counts(variable=node_id, state_names=state_names, parents=parents).to_numpy()
+
+
+    def learn_cpt(self, node, normalize=True):
+        counts = self._get_non_missing_counts(node)
+        node_id, state_names, parents = self._get_node_info(node)
+        new_node = DiscreteNode(id=node_id, values=counts, parents=parents, states=state_names[node_id])
         if normalize:
-            node.normalize()
-        return node
+            new_node.normalize()
+        return new_node
     
     def mle(self):
         return {key:self.learn_cpt(node) for (key, node) in self.model.nodes.items()}
 
 
+
+
         
+class EMLearner(CPTLearner):
+    def __init__(self, model, train_data=None, correction=0.01):
+        self.model = model
+        self.train_data = train_data
+        self.correction = correction
+        self.missing_data = self.train_data[self.train_data.isnull().any(axis=1)]
+        self.nrows_missing = self.missing_data.shape[0]
+        self.missing_var_sets = self.missing_variables()
+        self.ie = None
+
+
+    def missing_variables(self):
+        missing_vars = self.train_data.columns[self.train_data.isna().any()]
+        missing_var_sets = dict()
+        for var in missing_vars:
+            nodes_in_cpt = [var] + self.model.nodes[var].parents
+            missing_var_sets[var] = nodes_in_cpt
+        return missing_var_sets
+            
+    def prepare_inference_engine(self):
+        ie =gum.LazyPropagation(self.model.aux_bn)
+        for key, nodes in self.missing_var_sets.items():
+            ie.addJointTarget(set(nodes))
+        return ie
+
+    def init_full_counts(self):
+        return {key:self._get_non_missing_counts(node) for (key, node) in self.model.nodes.items()}
+    
+    def get_posterior(self, ie, vars_in_cpt):
+        post = ie.jointPosterior(set(vars_in_cpt)).reorganize(vars_in_cpt).toarray()
+        return post.T.reshape(2,-1)
+
+    def define_cpt(self, node, counts, normalize=True):
+        node_id, state_names, parents = self._get_node_info(node)
+        new_node = DiscreteNode(id=node_id, values=counts, parents=parents, states=state_names[node_id])
+        if normalize:
+            new_node.normalize()
+        return new_node
+    
+    def e_step(self, counts):
+        ie = self.prepare_inference_engine()
+        expected_counts = {key:value.copy() for key, value in counts.items()}
+        for i in range(self.nrows_missing):
+            row = self.missing_data.iloc[i]
+            missing_vars_in_row = self.missing_data.columns[row.isna()]
+            # We need expected counts for missing variables and children of missing variables
+            vars_needing_expected_counts = [key for key, value in self.missing_var_sets.items() if set(value).intersection(set(missing_vars_in_row))]
+            evidence = row.dropna().to_dict()
+            ie.setEvidence(evidence)
+            for variable in vars_needing_expected_counts:
+                vars_in_cpt = self.missing_var_sets[variable]
+                post = self.get_posterior(ie, vars_in_cpt)
+                expected_counts[variable] += post
+        return expected_counts
+
+    def m_step(self, counts):
+        return {key:self.define_cpt(node, counts[key]) for (key, node) in self.model.nodes.items()}
+
+    def em(self, num_iter = 10):
+        full_counts = self.init_full_counts()
+        m_cpts = dict()
+        for i in range(num_iter):
+            e_counts = self.e_step(full_counts)
+            m_cpts = self.m_step(e_counts)
+            model = Hybrid_BN(m_cpts.values())
+            self.model = model
+        return m_cpts
+    # Likelihood stopping rule!
+
+        
+
+
+
+
+
+
+
+

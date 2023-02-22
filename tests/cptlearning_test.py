@@ -93,7 +93,7 @@ class Test_DiscreteNode(unittest.TestCase):
     def test_learn_node_parents(self):
         learner = CPTLearner(self.model, self.train_data)
         node_c = self.model.nodes["c"]
-        learned_node_c = learner.learn_cpt(node_c)
+        learned_node_c = learner.learn_cpt(node_c, normalize=False)
 
         self.assertEqual(type(learned_node_c), DiscreteNode)
         self.assertEqual(learned_node_c.id, "c")
@@ -105,7 +105,7 @@ class Test_DiscreteNode(unittest.TestCase):
                 np.array([[0.01, 1.01, 0.01, 0.01], [1.01, 0.01, 1.01, 0.01]]),
             )
         )
-        learned_node_c.normalize()
+        learned_node_c = learner.learn_cpt(node_c, normalize=True)
         self.assertIsNone(
             np.testing.assert_array_almost_equal(
                 learned_node_c.values,
@@ -119,7 +119,7 @@ class Test_DiscreteNode(unittest.TestCase):
         )
 
         learner = CPTLearner(self.model, self.train_data, correction=0.0)
-        learned_node_c2 = learner.learn_cpt(node_c)
+        learned_node_c2 = learner.learn_cpt(node_c, normalize=False)
         self.assertIsNone(
             np.testing.assert_array_equal(
                 learned_node_c2.values,
@@ -127,7 +127,7 @@ class Test_DiscreteNode(unittest.TestCase):
             )
         )
 
-        learned_node_c2.normalize()
+        learned_node_c2 = learner.learn_cpt(node_c, normalize=True)
         self.assertIsNone(
             np.testing.assert_array_almost_equal(
                 learned_node_c2.values,
@@ -138,7 +138,7 @@ class Test_DiscreteNode(unittest.TestCase):
     def test_learn_node_no_parents(self):
         learner = CPTLearner(self.model, self.train_data)
         node_a = self.model.nodes["a"]
-        learned_node_a = learner.learn_cpt(node_a)
+        learned_node_a = learner.learn_cpt(node_a, normalize=False)
 
         self.assertEqual(type(learned_node_a), DiscreteNode)
         self.assertEqual(learned_node_a.id, "a")
@@ -150,7 +150,8 @@ class Test_DiscreteNode(unittest.TestCase):
             )
         )
 
-        learned_node_a.normalize()
+
+        learned_node_a = learner.learn_cpt(node_a, normalize=True)
         self.assertIsNone(
             np.testing.assert_array_almost_equal(
                 learned_node_a.values, np.array([[0.665562914], [0.334437086]])
@@ -158,16 +159,16 @@ class Test_DiscreteNode(unittest.TestCase):
         )
 
         learner = CPTLearner(self.model, self.train_data, correction=0.0)
-        learned_node_a2 = learner.learn_cpt(node_a)
+        learned_node_a2 = learner.learn_cpt(node_a, normalize=False)
         self.assertIsNone(
             np.testing.assert_array_equal(
                 learned_node_a2.values, np.array([[2.00], [1.00]])
             )
         )
-        learned_node_a2.normalize()
+        learned_node_a2 = learner.learn_cpt(node_a, normalize=True)
         self.assertIsNone(
             np.testing.assert_array_almost_equal(
-                learned_node_a2.values, np.array([[0.75], [0.25]])
+                learned_node_a2.values, np.array([[0.666666667], [0.333333333]])
             )
         )
 
