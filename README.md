@@ -9,6 +9,7 @@
 - numpy
 - pyAgrum
 - scipy
+- pandas
 
 
 ## Installation
