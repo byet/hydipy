@@ -1,6 +1,6 @@
 # hydipy - Hybrid Bayesian Networks with Dynamic Discretization
 
-`hydipy` is for hybrid Bayesian Networks that contains both discrete and continuous variables.  
+`hydipy` is for hybrid Bayesian Networks that contains both discrete and continuous variables. See `examples` folder for tutorials.
 
 ## Dependencies
 
